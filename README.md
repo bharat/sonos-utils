@@ -18,23 +18,23 @@ them in a hierarchical form. Here's some sample output:
 ```
 Sonos              Network                   State                RSSI    B# Drops  CHSNK
 Family Room        wap-family-room (6)       PLAYING                86   498    96  1.000
- Dining Room       wap-family-room (6)       PLAYING                55   584    24  1.000
- Master Bathroom   wap-master-bedroom (11)   PLAYING                41   550    37  1.000 
- Master Bedroom    wap-master-bedroom (11)   PLAYING                     524    25  1.000  
-Living Room        wap-living-room (1)       STOPPED                42   197    36   
-WEMY WOOM!         wap-bedroom-2 (11)        PLAYING                     585    33  0.752   
- Office            wap-office (1)            PLAYING                     241    11  1.000   
- Piano Room        Wired                     PLAYING                72              1.000    
- Upstairs          wap-bedroom-2 (11)        PLAYING                     585    41  1.000     
+ Dining Room       wap-family-room (6)                       55   584    24  1.000
+ Master Bathroom   wap-master-bedroom (11)                   41   550    37  1.000
+ Master Bedroom    wap-master-bedroom (11)                        524    25  1.000
+Living Room        wap-living-room (1)       STOPPED                42   197    36
+WEMY WOOM!         wap-bedroom-2 (11)        PLAYING                     585    33  0.752
+ Office            wap-office (1)                                 241    11  1.000
+ Piano Room        Wired                                     72              1.000
+ Upstairs          wap-bedroom-2 (11)                             585    41  1.000
 ```
 
-### How to read this data: 
+### How to read this data:
 
-Sonos: the name of the sonos. Rows are grouped by group leader, so note that `Dining Room` is grouped under `Family Room`. You may see `Dining Room` report as `PLAYING` when it's attached, even if the group leader is not playing anything - but it's doing whatever the group leader does at that point. I should probably clean that up a bit.
+Sonos: the name of the sonos. Rows are grouped by group leader, so note that `Dining Room` is grouped under `Family Room`.
 
 Network: the name of the wireless access point the Sonos is connected to. This is useful in the case where you have multiple access points in your system. The number in parentheses is the wireless channel. We use ARP to figure out the IP of the access point, and DNS to resolve it to a name. If you don't have one or the other of those set up, you may see a MAC address or an IP address in this column. If the device is not using wifi, then it'll report as `Wird` (see `Piano Room` above).
 
-State: `PLAYING`, `STOPPED` or `PAUSED_PLAYBACK` in the case where the Sonos is paused in the middle of a song.
+State: `PLAYING`, `STOPPED` or `PAUSED_PLAYBACK` in the case where the Sonos is paused in the middle of a song. This only shows for the leader of a group - every Sonos under the group leader is doing the same thing that the leader is doing.
 
 RSSI: The wifi signal strength. Higher number is better. This is scraped out of the Sonos dmesg log which expires old message, so it's possible that the data is missing if the Sonos hasn't changed it's access point in a while or has been up for a long time.
 

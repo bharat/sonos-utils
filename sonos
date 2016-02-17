@@ -103,10 +103,10 @@ def zp_name(zp):
 
 
 def zp_print(zp, fmt, net_data, level):
-    padding = level * ' '
+    padding = level * '  '
 
     state = ''
-    if zp.is_visible:
+    if zp.is_visible and level == 0:
         state = zp.get_current_transport_info()['current_transport_state']
 
     print fmt % (
