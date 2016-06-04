@@ -86,7 +86,7 @@ def get_network_data(zp_ip):
         tree = ElementTree.fromstring(response)
         chsnk = tree.find('./PerformanceCounters/Counter[@name="CHSNK Fill Level"]')
 
-        chsnk_ints = [int(x) for x in chsnk.text.split('\n')[2].split()[1:]]
+        chsnk_ints = [int(x) for x in chsnk.text.split('\n')[2].split()[1:]][0:11]
         chsnk_sum = numpy.sum(chsnk_ints)
         if chsnk_sum:
             chsnk_score = numpy.dot(chsnk_ints, range(1, 12)) / float(chsnk_sum*11)
