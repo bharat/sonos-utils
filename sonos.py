@@ -26,17 +26,46 @@ def name(ip):
         return ip
 
 
-def build_rev_arp():
+def fuzz(mac):
+    """
+    Return a table with the mac address as well as 6 variants. The variants
+    are the addresses where each of the last 3 components is offset +/- 1
+    address.
+    """
+    components = [int(x, 16) for x in mac.split(':')]
+    offsets = [
+        [0, 0, 0,  0,  0, -1],                     [0, 0, 0, 0, 0, 1],
+        [0, 0, 0,  0, -1,  0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, -1,  0,  0],                     [0, 0, 0, 1, 0, 0]
+    ]
+
+    table = []
+    for variant in offsets:
+        table.append(':'.join(['{:02X}'.format(sum(x) % 256)
+                               for x in zip(components, variant)]))
+    return table
+
+
+def build_fuzzy_rev_arp():
+    """
+    Build a reverse arp table to map MAC addresses to host names.
+
+    Many access points have two NICs so the MAC address that the Sonos
+    sees may not be the one that shows up in the arp table. Fuzz each
+    MAC addr enough so that we have a high likelihood of matching.
+    """
     rev_arp_table = {}
     if os.path.exists('/proc/net/arp'):
         for line in open('/proc/net/arp').read().splitlines():
             fields = line.split()
-            rev_arp_table[fields[3].upper()] = name(fields[0])
+            if ':' in fields[3]:
+                for fuzzy_mac in fuzz(fields[3].upper()):
+                    rev_arp_table[fuzzy_mac] = name(fields[0])
     return rev_arp_table
 
 
 def get_network_data(zp_ip):
-    rev_arp = build_rev_arp()
+    rev_arp = build_fuzzy_rev_arp()
 
     data = {}
     data['beacons'] = ''
