@@ -127,6 +127,22 @@ def get_network_data(zp_ip):
     return data
 
 
+def get_wifi_scan(zp_ip):
+    data = []
+    try:
+        response = zp_request(zp_ip, 'status/scanresults')
+        tree = ElementTree.fromstring(response)
+        for line in tree.find('./Command').text.split('\n'):
+            if ': chan:' in line:
+                data.append(line)
+
+    except urllib2.URLError as e:
+        # Network errors result in '?' values which should be red flag enough
+        pass
+
+    return data
+
+
 def zp_name(zp):
     return zp.get_speaker_info()['zone_name']
 
@@ -162,7 +178,7 @@ def all_zps_sorted():
     return zps
 
 
-def map_network(zps):
+def map_network(zps, args):
     fmt = '%-18.18s %-25.25s %-18.18s  %5.5s %5.5s %5.5s %6.6s'
 
     # Gather up all net data in parallel. We can't pass ZonePlayer objects
@@ -179,7 +195,29 @@ def map_network(zps):
             zp_print(zp, fmt, net_data, 0)
 
 
-def reboot_network(zps):
+def wifi_status(zps, args):
+    rev_arp = build_fuzzy_rev_arp()
+
+    # Gather up all scan data in parallel. We can't pass ZonePlayer objects
+    # across the process boundary so deal in IPs
+    scan_data = {}
+    p = multiprocessing.Pool(len(zps))
+    zp_ips = [x.ip_address for x in zps]
+    for (zp, result) in zip(zps, p.map(get_wifi_scan, zp_ips)):
+        scan_data[zp] = result
+
+    for zp in zps:
+        print 'Sonos: %s' % zp_name(zp)
+        for line in scan_data[zp]:
+            if args.filter in line:
+                for (mac, name) in rev_arp.iteritems():
+                    mac = mac.lower()   # scan results have mac in lower case
+                    line = line.replace(mac, '%20.20s' % name)
+                print line
+        print
+
+
+def reboot_network(zps, args):
     print "REBOOTING THESE SONOS IN 5 SECONDS!\n\t%s\nHit ^C to abort" % \
         "\n\t".join([zp_name(x) for x in zps])
     time.sleep(5)
@@ -197,7 +235,9 @@ def main(argv=None):
     subparsers = parser.add_subparsers(dest='cmd')
     parser_map = subparsers.add_parser('map')
     parser_reboot = subparsers.add_parser('reboot')
-    parser_reboot.add_argument('hosts', metavar='hosts', nargs='*', help='hosts to reboot')
+    parser_wifi_status = subparsers.add_parser('wifi-status')
+    parser_wifi_status.add_argument('--filter', metavar='filter', nargs='?', default='', help='Wifi SSID filter')
+
     args = parser.parse_args()
 
     zps = all_zps_sorted()
@@ -207,9 +247,10 @@ def main(argv=None):
 
     cmd_exec = {
         'map': map_network,
+        'wifi-status': wifi_status,
         'reboot': reboot_network,
         }
-    cmd_exec[args.cmd](zps)
+    cmd_exec[args.cmd](zps, args)
 
 
 if __name__ == '__main__':
