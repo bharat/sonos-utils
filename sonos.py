@@ -143,6 +143,22 @@ def get_wifi_scan(zp_ip):
     return data
 
 
+def get_wifi_blacklist(zp_ip):
+    data = []
+    try:
+        response = zp_request(zp_ip, 'status/dmesg')
+        tree = ElementTree.fromstring(response)
+        for line in tree.find('./Command').text.split('\n'):
+            if 'blacklisted' in line:
+                data.append(line)
+
+    except urllib2.URLError as e:
+        # Network errors result in '?' values which should be red flag enough
+        pass
+
+    return data
+
+
 def zp_name(zp):
     return zp.get_speaker_info()['zone_name']
 
@@ -217,6 +233,27 @@ def wifi_status(zps, args):
         print
 
 
+def wifi_blacklist(zps, args):
+    rev_arp = build_fuzzy_rev_arp()
+
+    # Gather up all scan data in parallel. We can't pass ZonePlayer objects
+    # across the process boundary so deal in IPs
+    scan_data = {}
+    p = multiprocessing.Pool(len(zps))
+    zp_ips = [x.ip_address for x in zps]
+    for (zp, result) in zip(zps, p.map(get_wifi_blacklist, zp_ips)):
+        scan_data[zp] = result
+
+    for zp in zps:
+        print 'Sonos: %s' % zp_name(zp)
+        for line in scan_data[zp]:
+            for (mac, name) in rev_arp.iteritems():
+                mac = mac.lower()   # dmesg results have mac in lower case
+                line = line.replace(mac, '%20.20s' % name)
+            print line
+        print
+
+
 def reboot_network(zps, args):
     print "REBOOTING THESE SONOS IN 5 SECONDS!\n\t%s\nHit ^C to abort" % \
         "\n\t".join([zp_name(x) for x in zps])
@@ -237,6 +274,7 @@ def main(argv=None):
     parser_reboot = subparsers.add_parser('reboot')
     parser_wifi_status = subparsers.add_parser('wifi-status')
     parser_wifi_status.add_argument('--filter', metavar='filter', nargs='?', default='', help='Wifi SSID filter')
+    parser_wifi_blacklist = subparsers.add_parser('wifi-blacklist')
 
     args = parser.parse_args()
 
@@ -248,6 +286,7 @@ def main(argv=None):
     cmd_exec = {
         'map': map_network,
         'wifi-status': wifi_status,
+        'wifi-blacklist': wifi_blacklist,
         'reboot': reboot_network,
         }
     cmd_exec[args.cmd](zps, args)
