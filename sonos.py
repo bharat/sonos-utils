@@ -81,12 +81,12 @@ def get_network_data(zp_ip):
             data['ssid'] = list(re.findall(
                 r'SSID: \[(.*)\] \((\d+)\) ([0-9A-F:]{17})', response)[0])
             data['channel'] = list(re.findall(
-                r'Channel: current: (\d+) ap: (\d+)', response)[0])
+                r'Channel: current: (\d+) ap: (\d+)', response)[0])[1]
 
             wap_hostname = data['ssid'][2]
             if wap_hostname in rev_arp:
                 wap_hostname = rev_arp[wap_hostname]
-            data['network'] = '%s (%s)' % (wap_hostname, data['channel'][1])
+            data['network'] = wap_hostname
 
             # Parse the last line of the network receive stats
             tree = ElementTree.fromstring(response)
@@ -96,6 +96,7 @@ def get_network_data(zp_ip):
             data['prr'] = cols[-4]
         else:
             data['network'] = 'Wired'
+            data['channel'] = ''
     except urllib2.URLError as e:
         # Network errors result in '?' values which should be red flag enough
         pass
@@ -172,7 +173,7 @@ def zp_print(zp, fmt, net_data, level):
 
     print fmt % (
         padding + zp_name(zp),
-        net_data[zp]['network'],
+        '%s (%s)' % (net_data[zp]['network'], net_data[zp]['channel']),
         state,
         net_data[zp]['rssi'],
         net_data[zp]['beacons'],
@@ -195,7 +196,7 @@ def all_zps_sorted():
 
 
 def map_network(zps, args):
-    fmt = '%-18.18s %-25.25s %-18.18s  %5.5s %5.5s %5.5s %6.6s'
+    fmt = '%-18.18s %25.25s %-18.18s  %5.5s %5.5s %5.5s %6.6s'
 
     # Gather up all net data in parallel. We can't pass ZonePlayer objects
     # across the process boundary so deal in IPs
@@ -222,8 +223,14 @@ def wifi_status(zps, args):
     for (zp, result) in zip(zps, p.map(get_wifi_scan, zp_ips)):
         scan_data[zp] = result
 
+    net_data = {}
+    p = multiprocessing.Pool(len(zps))
+    zp_ips = [x.ip_address for x in zps]
+    for (zp, nd) in zip(zps, p.map(get_network_data, zp_ips)):
+        net_data[zp] = nd
+
     for zp in zps:
-        print 'Sonos: %s' % zp_name(zp)
+        print 'Sonos: %s (connected to %s)' % (zp_name(zp), net_data[zp]['network'])
         for line in scan_data[zp]:
             if args.filter in line:
                 for (mac, name) in rev_arp.iteritems():
