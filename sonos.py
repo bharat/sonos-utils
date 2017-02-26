@@ -230,14 +230,30 @@ def wifi_status(zps, args):
         net_data[zp] = nd
 
     for zp in zps:
-        print 'Sonos: %s (connected to %s)' % (zp_name(zp), net_data[zp]['network'])
-        for line in scan_data[zp]:
-            if args.filter in line:
-                for (mac, name) in rev_arp.iteritems():
-                    mac = mac.lower()   # scan results have mac in lower case
-                    line = line.replace(mac, '%20.20s' % name)
-                print line
-        print
+        current_ap = net_data[zp]['network']
+        print 'Sonos: %s (connected to %s)' % (zp_name(zp), current_ap)
+        sorted_by_rssi = sorted(
+            [x for x in scan_data[zp] if 'rssi: ' in x],
+            key=lambda l: int(re.search('rssi:\s*(\d+)', l).group(1)),
+            reverse=True)
+        if sorted_by_rssi:
+            filtered = [x for x in sorted_by_rssi if args.filter in x]
+            renamed = []
+
+            if filtered:
+                for line in filtered:
+                    for (mac, name) in rev_arp.iteritems():
+                        mac = mac.lower()   # scan results have lower case MAC
+                        line = line.replace(mac, '%20.20s' % name)
+                    renamed.append(line)
+                print '\n'.join(renamed)
+
+                best_ap = re.search('(\S+): ', renamed[0]).group(1)
+                if current_ap != best_ap:
+                    print '******** NOT OPTIMAL: change access point from [%s] to [%s]' % (
+                        current_ap, best_ap)
+
+        print '\n'
 
 
 def wifi_blacklist(zps, args):
@@ -253,7 +269,7 @@ def wifi_blacklist(zps, args):
 
     for zp in zps:
         print 'Sonos: %s' % zp_name(zp)
-        for line in scan_data[zp]:
+        for line in sorted(scan_data[zp], key=lambda l: int(re.search('rssi: (\d+)', l).group(1))):
             for (mac, name) in rev_arp.iteritems():
                 mac = mac.lower()   # dmesg results have mac in lower case
                 line = line.replace(mac, '%20.20s' % name)
