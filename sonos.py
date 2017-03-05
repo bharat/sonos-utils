@@ -269,7 +269,7 @@ def wifi_blacklist(zps, args):
 
     for zp in zps:
         print 'Sonos: %s' % zp_name(zp)
-        for line in sorted(scan_data[zp], key=lambda l: int(re.search('rssi: (\d+)', l).group(1))):
+        for line in scan_data[zp]:
             for (mac, name) in rev_arp.iteritems():
                 mac = mac.lower()   # dmesg results have mac in lower case
                 line = line.replace(mac, '%20.20s' % name)
